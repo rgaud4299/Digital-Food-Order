@@ -1,5 +1,5 @@
 {
-  "name": "auth-api-prisma",
+  "name": "Digital-Food-Order",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
