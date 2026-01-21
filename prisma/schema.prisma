@@ -1,0 +1,1437 @@
+// schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ========================
+// ENUMS
+// ========================
+enum Status {
+  Active
+  Inactive
+  Suspended
+}
+
+enum FoodType {
+  Veg
+  NonVeg
+}
+
+enum PortionType {
+  Quarter
+  Half
+  Full
+  Small
+  Medium
+  Large
+  Family
+  Custom
+}
+
+enum UserType {
+  PlatformAdmin
+  RestaurantStaff
+  Customer
+}
+
+enum OrderStatus {
+  Pending
+  Confirmed
+  Preparing
+  ReadyForPickup
+  ReadyForDelivery
+  Completed
+  Cancelled
+  Refunded
+}
+
+enum FeedbackType {
+  General
+  Complaint
+  Suggestion
+  Compliment
+}
+
+enum TicketStatus {
+  Pending
+  Preparing
+  Completed
+  Cancelled
+}
+
+enum TicketItemStatus {
+  Pending
+  InProgress
+  Completed
+}
+
+enum PayoutStatus {
+  Pending
+  Processing
+  Completed
+  Failed
+}
+
+enum OrderSource {
+  Waiter
+  SelfService
+  OnlineDelivery
+  Phone
+  POS
+}
+
+enum PaymentMethod {
+  UPI
+  Card
+  Cash
+  Wallet
+  Other
+}
+
+enum PaymentStatus {
+  Unpaid
+  Paid
+  Failed
+  Refunded
+}
+
+enum RefundStatus {
+  Pending
+  Completed
+  Failed
+}
+
+enum WalletTxnType {
+  Credit
+  Debit
+}
+
+enum QRType {
+  Table
+  Menu
+  Feedback
+}
+
+enum TokenStatus {
+  Active
+  Inactive
+  Expired
+}
+
+enum TableStatus {
+  Active
+  Inactive
+  Occupied
+  Reserved
+  Maintenance
+}
+
+enum InvoiceStatus {
+  Unpaid
+  Paid
+  Overdue
+}
+
+enum PayoutProvider {
+  Bank
+  Razorpay
+  Stripe
+  Other
+}
+
+enum SegmentRuleType {
+  OrdersCount
+  TotalSpent
+  LastOrderDays
+}
+
+enum WalletSource {
+  TopUp
+  Refund
+  Promo
+  AdminAdjust
+}
+
+enum PaymentProvider {
+  Razorpay
+  Stripe
+
+  Cash
+  Other
+}
+
+enum LoginStatus {
+  Success
+  Failed
+}
+
+enum Role {
+  Admin
+  User
+  Employee
+}
+
+enum UserStatus {
+  Active
+  Inactive
+  Banned
+}
+
+enum CustomersRole {
+  Guest
+  New
+}
+
+enum delivery_type {
+  pickup
+  dine_in
+}
+
+// staff USERS & AUTH
+model users {
+  id                    BigInt     @id @default(autoincrement())
+  restaurant_id         BigInt? // for staff; null for platform-only users
+  uuid                  BigInt     @unique
+  name                  String     @db.VarChar(190)
+  email                 String     @unique @db.VarChar(190)
+  mobile_no             String     @unique @db.VarChar(12)
+  password              String     @db.VarChar(255)
+  mpin                  String?    @db.VarChar(100)
+  profile_image         String?    @db.VarChar(255)
+  role                  UserType   @default(PlatformAdmin)
+  status                UserStatus @default(Active)
+  mobile_verified_at    DateTime?  @db.Timestamp(6)
+  email_verified_at     DateTime?  @db.Timestamp(6)
+  is_mobile_no_verified Boolean    @default(false)
+  is_email_verified     Boolean    @default(false)
+  is_login_otp_enable   Boolean?   @default(false)
+  is_active             Boolean    @default(true)
+  delete_status         Int        @default(0)
+  deleted_at            DateTime?  @db.Timestamp(6)
+  remember_token        String?    @db.VarChar(100)
+  last_login_at         DateTime?  @db.Timestamp(6)
+  created_at            DateTime?  @db.Timestamp(6)
+  updated_at            DateTime?  @db.Timestamp(6)
+
+  // relations
+  staff              restaurants?         @relation("RestaurantStaff", fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  owner              restaurants[]        @relation("PlatformAdmin")
+  api_keys           api_keys[]
+  permissions        user_permissions[]
+  orders             orders[]             @relation("CustomerOrders")
+  customer_feedbacks customer_feedbacks[] @relation("CustomerFeedbacksresolved")
+  session_tokens     session_tokens[]
+
+  @@index([restaurant_id, role])
+}
+
+model restaurants {
+  id                   BigInt    @id @default(autoincrement())
+  uuid                 BigInt    @unique
+  name                 String    @db.VarChar(150)
+  owner_user_id        BigInt
+  status               Status    @default(Active)
+  subscription_plan_id BigInt?
+  metadata             Json?
+  contact_number       String?   @db.VarChar(20) // Restaurant contact mobile/phone
+  email                String?   @db.VarChar(150) // Restaurant email
+  is_verified          Boolean   @default(false) // Admin verified or not
+  created_at           DateTime?
+  updated_at           DateTime?
+  deleted_at           DateTime?
+
+  // relations
+  locations               locations[]
+  food_categories         food_categories[]
+  food_items              food_items[]
+  orders                  orders[]
+  owner                   users                      @relation("PlatformAdmin", fields: [owner_user_id], references: [uuid], onDelete: Cascade)
+  staff                   users[]                    @relation("RestaurantStaff")
+  devices                 devices[]
+  payouts                 payouts[]
+  media                   media[]
+  restaurant_tables       restaurant_tables[]
+  qr_codes                qr_codes[]
+  settings                restaurant_settings?
+  coupons                 coupons[]
+  taxes                   taxes[]
+  api_keys                api_keys[]
+  combos                  combos[]
+  idempotency_keys        idempotency_keys[]
+  kitchen_tickets         kitchen_tickets[]
+  customer_feedbacks      customer_feedbacks[]
+  customers               customers[]
+  customer_referrals      customer_referrals[]
+  customer_segments       customer_segments[]
+  restaurantSubscriptions restaurant_subscriptions[]
+  invoices                invoices[]
+
+  @@index([status])
+  @@index([owner_user_id])
+}
+
+model temporary_tokens {
+  id         BigInt    @id @default(autoincrement())
+  user_id    BigInt
+  token      String    @unique
+  type       String?   @db.VarChar(50)
+  isVerified Boolean?  @default(false)
+  expires_at DateTime? @db.Timestamp(6)
+  created_at DateTime? @db.Timestamp(6)
+  updated_at DateTime? @db.Timestamp(6)
+}
+
+// Multi-branch / outlet support
+model locations {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  name          String    @db.VarChar(150)
+  address       String?   @db.VarChar(500)
+  phone         String?   @db.VarChar(30)
+  latitude      Decimal?  @db.Decimal(9, 6)
+  longitude     Decimal?  @db.Decimal(9, 6)
+  is_main       Boolean   @default(false)
+  created_at    DateTime? @default(now())
+  updated_at    DateTime? @updatedAt
+
+  restaurant        restaurants         @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  devices           devices[]
+  food_items        food_items[]
+  restaurant_tables restaurant_tables[]
+  orders            orders[]
+
+  @@unique([restaurant_id, name])
+  @@index([restaurant_id])
+}
+
+model restaurant_settings {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt    @unique
+  settings_json Json
+  updated_at    DateTime? @updatedAt
+
+  restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+}
+
+model temp_users {
+  id                 BigInt    @id @default(autoincrement())
+  name               String    @db.VarChar(190)
+  email              String    @unique @db.VarChar(190)
+  password           String    @db.VarChar(255)
+  mobile_no          String    @db.VarChar(20)
+  created_at         DateTime? @db.Timestamp(6)
+  updated_at         DateTime? @db.Timestamp(6)
+  email_otp          String?   @db.VarChar(10)
+  mobile_otp         String?   @db.VarChar(10)
+  is_email_verified  Boolean?  @default(false)
+  is_mobile_verified Boolean?  @default(false)
+}
+
+model otp_verifications {
+  id          BigInt    @id @default(autoincrement())
+  otp         Int?
+  expires_at  DateTime? @db.Timestamp(6)
+  is_verified Boolean?  @default(false)
+  created_at  DateTime? @db.Timestamp(6)
+  updated_at  DateTime? @db.Timestamp(6)
+  user_id     BigInt?
+  type        String?   @db.VarChar
+}
+
+model audit_trail {
+  id             BigInt    @id @default(autoincrement())
+  table_name     String    @db.VarChar(255)
+  row_id         BigInt
+  action         String    @db.VarChar(20)
+  created_by     BigInt?
+  created_at     DateTime? @db.Timestamp(6)
+  updated_by     BigInt?
+  updated_at     DateTime? @db.Timestamp(6)
+  approved_by    BigInt?
+  approved_at    DateTime? @db.Timestamp(6)
+  verified_by    BigInt?
+  verified_at    DateTime? @db.Timestamp(6)
+  rejected_by    BigInt?
+  rejected_at    DateTime? @db.Timestamp(6)
+  deleted_by     BigInt?
+  deleted_at     DateTime? @db.Timestamp(6)
+  ip_address     String?   @db.VarChar(45)
+  latitude       Decimal?  @db.Decimal(10, 7)
+  longitude      Decimal?  @db.Decimal(10, 7)
+  remark         String?   @db.VarChar
+  status         String?   @db.VarChar
+  old_data       String?
+  new_data       String?
+  row_created_at DateTime? @db.Timestamp(6)
+}
+
+model login_history {
+  id               BigInt       @id @default(autoincrement())
+  device           String?      @db.VarChar(190)
+  operating_system String?      @db.VarChar(190)
+  browser          String?      @db.VarChar(190)
+  ip_address       String?      @db.VarChar(50)
+  latitude         Decimal?     @db.Decimal(10, 7)
+  longitude        Decimal?     @db.Decimal(10, 7)
+  location         String?      @db.VarChar
+  status           LoginStatus?
+  user_agent       String?      @db.VarChar
+  created_at       DateTime?    @db.Timestamp(6)
+  updated_at       DateTime?    @db.Timestamp(6)
+  user_id          BigInt?
+}
+
+// API keys
+model api_keys {
+  id            BigInt    @id @default(autoincrement())
+  user_id       BigInt?
+  restaurant_id BigInt?
+  name          String    @db.VarChar(120)
+  key           String    @unique
+  secret        String?
+  scopes        Json?
+  is_active     Boolean   @default(true)
+  created_at    DateTime? @default(now())
+
+  user       users?       @relation(fields: [user_id], references: [uuid], onDelete: Cascade)
+  restaurant restaurants? @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([restaurant_id])
+}
+
+// Session or socket tokens
+model session_tokens {
+  id         BigInt      @id @default(autoincrement())
+  user_id    BigInt
+  token      String      @unique @db.VarChar
+  token_type String?     @db.VarChar(10)
+  expires_at DateTime?   @db.Timestamp(6)
+  status     TokenStatus @default(Active)
+  session_id String?     @db.VarChar(255)
+  created_at DateTime?   @db.Timestamp(6)
+  updated_at DateTime?   @db.Timestamp(6)
+
+  user users @relation(fields: [user_id], references: [uuid], onDelete: Cascade)
+}
+
+model customer_session_tokens {
+  id         BigInt      @id @default(autoincrement())
+  cust_id    BigInt
+  token      String      @unique @db.VarChar
+  token_type String?     @db.VarChar(10)
+  expires_at DateTime?   @db.Timestamp(6)
+  status     TokenStatus @default(Active)
+  session_id String?     @db.VarChar(255)
+  created_at DateTime?   @db.Timestamp(6)
+  updated_at DateTime?   @db.Timestamp(6)
+
+  customer customers @relation(fields: [cust_id], references: [uuid], onDelete: Cascade)
+}
+
+// Push tokens for notifications
+model push_tokens {
+  id           BigInt    @id @default(autoincrement())
+  user_id      BigInt
+  provider     String?   @db.VarChar(50) // fcm, apns, webpush
+  token        String    @db.VarChar(500)
+  meta         Json?
+  is_active    Boolean?  @default(true)
+  last_used_at DateTime?
+  created_at   DateTime? @default(now())
+
+  @@index([user_id])
+}
+
+// RBAC 
+model user_permissions {
+  id         BigInt    @id @default(autoincrement())
+  user_id    BigInt
+  resource   String    @db.VarChar(100)
+  allow      Boolean   @default(true)
+  actions    String? // json or comma-separated e.g. "create,update,delete"
+  created_at DateTime? @default(now())
+
+  user users @relation(fields: [user_id], references: [uuid], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+// MEDIA
+model media {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt?
+  owner_table   String? // e.g., food_items, invoices
+  owner_id      BigInt?
+  type          String? // image, video, pdf
+  url           String
+  meta          Json?
+  created_at    DateTime? @default(now())
+
+  restaurant     restaurants?     @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  food_items     food_items?      @relation("food_media", fields: [food_itemsId], references: [id])
+  food_itemsId   BigInt?
+  feedback_media feedback_media[]
+
+  @@index([restaurant_id])
+  @@index([owner_table, owner_id])
+}
+
+// model food_items {
+//   id            BigInt    @id @default(autoincrement())
+//   restaurant_id BigInt
+//   location_id   BigInt? 
+//   category_id   BigInt?
+//   name          String    @db.VarChar(150)
+//   slug          String?   @db.VarChar(150)
+//   description   String?   @db.VarChar(1000)
+//   icon          String?   @db.VarChar(255)
+//   status        Status?   @default(Active)
+//   type          FoodType  @default(Veg)
+//   prep_time_min Int?
+//   sequence      Int?      @default(0)
+//   is_visible    Boolean?  @default(true)
+//   created_at    DateTime? @default(now())
+//   updated_at    DateTime? @updatedAt
+
+//   restaurant      restaurants      @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+//   location        locations?       @relation(fields: [location_id], references: [id])
+//   food_categories food_categories? @relation(fields: [category_id], references: [id])
+//   food_variants   food_variants[]
+//   food_addons     food_addons[]
+//   order_items     order_items[]
+//   media_items     media[]          @relation("food_media")
+//   combo_items     combo_items[]
+
+//   @@unique([restaurant_id, slug], map: "unique_restro_item_slug")
+//   @@index([restaurant_id, category_id])
+//   @@index([restaurant_id, status])
+// }
+// MENU: CATEGORIES, ITEMS, VARIANTS, ADDONS, COMBOS
+model food_categories {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  name          String    @db.VarChar(100)
+  slug          String?   @db.VarChar(100)
+  icon          String?   @db.VarChar(255)
+  description   String?   @db.VarChar(500)
+  status        Status?   @default(Active)
+  sequence      Int?      @default(0)
+  created_at    DateTime? @default(now())
+  updated_at    DateTime? @updatedAt
+
+  restaurant restaurants  @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  food_items food_items[]
+
+  @@unique([restaurant_id, slug], map: "unique_restro_category_slug")
+  @@index([restaurant_id, status])
+  @@index([restaurant_id, sequence])
+}
+
+model food_items {
+  id              BigInt    @id @default(autoincrement())
+  restaurant_id   BigInt
+  location_id     BigInt?
+  category_id     BigInt?
+  name            String    @db.VarChar(150)
+  slug            String?   @db.VarChar(150)
+  description     String?   @db.VarChar(1000)
+  icon            String?   @db.VarChar(255)
+  status          Status?   @default(Active)
+  type            FoodType  @default(Veg)
+  prep_time_min   Int?
+  sequence        Int?      @default(0)
+  is_visible      Boolean?  @default(true)
+  is_featured     Boolean?  @default(false)
+  is_out_of_stock Boolean?  @default(false)
+  rating          Decimal?  @default(0.0) @db.Decimal(2, 1)
+  rating_count    Int?      @default(0)
+  search_keywords String?   @db.VarChar(500)
+  is_deleted      Boolean?  @default(false)
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @updatedAt
+
+  restaurant      restaurants      @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  location        locations?       @relation(fields: [location_id], references: [id])
+  food_categories food_categories? @relation(fields: [category_id], references: [id])
+  food_variants   food_variants[]
+  food_addons     food_addons[]
+  order_items     order_items[]
+  media_items     media[]          @relation("food_media")
+  combo_items     combo_items[]
+
+  @@unique([restaurant_id, slug], map: "unique_restro_item_slug")
+  @@index([restaurant_id, category_id])
+  @@index([restaurant_id, status])
+  @@index([restaurant_id, type])
+  @@index([restaurant_id, sequence])
+}
+
+// Variants
+model food_variants {
+  id            BigInt      @id @default(autoincrement())
+  restaurant_id BigInt
+  food_item_id  BigInt
+  portion_type  PortionType
+  name          String?     @db.VarChar(100)
+  sku           String?     @db.VarChar(100)
+  price         Decimal     @db.Decimal(12, 2)
+  cost_price    Decimal?    @db.Decimal(12, 2)
+  is_available  Boolean?    @default(true)
+  stock_control Boolean?    @default(false)
+  created_at    DateTime?   @default(now())
+  updated_at    DateTime?   @updatedAt
+
+  food_items             food_items               @relation(fields: [food_item_id], references: [id], onDelete: Cascade)
+  order_items            order_items[]
+  inventory_transactions inventory_transactions[]
+  combo_items            combo_items[]
+
+  @@index([food_item_id])
+  @@index([restaurant_id])
+}
+
+// Addons
+model food_addons {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  food_item_id  BigInt
+  name          String    @db.VarChar(100)
+  price         Decimal   @db.Decimal(12, 2)
+  is_available  Boolean?  @default(true)
+  created_at    DateTime? @default(now())
+  updated_at    DateTime? @updatedAt
+
+  food_items   food_items     @relation(fields: [food_item_id], references: [id], onDelete: Cascade)
+  order_addons order_addons[]
+
+  @@index([restaurant_id])
+  @@index([food_item_id])
+}
+
+// Combos / Bundles
+model combos {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  name          String    @db.VarChar(150)
+  description   String?
+  price         Decimal   @db.Decimal(12, 2)
+  is_active     Boolean?  @default(true)
+  created_at    DateTime? @default(now())
+  updated_at    DateTime? @updatedAt
+
+  restaurant  restaurants   @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  combo_items combo_items[]
+
+  @@index([restaurant_id, is_active])
+}
+
+model combo_items {
+  id           BigInt  @id @default(autoincrement())
+  combo_id     BigInt
+  food_item_id BigInt?
+  variant_id   BigInt?
+  qty          Int     @default(1)
+
+  combos        combos         @relation(fields: [combo_id], references: [id], onDelete: Cascade)
+  food_items    food_items?    @relation(fields: [food_item_id], references: [id])
+  food_variants food_variants? @relation(fields: [variant_id], references: [id])
+}
+
+// TABLES & QR
+model restaurant_tables {
+  id            BigInt       @id @default(autoincrement())
+  restaurant_id BigInt
+  location_id   BigInt?
+  table_number  String       @db.VarChar(50)
+  qr_code_url   String?      @db.VarChar(255)
+  is_active     Boolean      @default(true)
+  status        TableStatus? @default(Active)
+  expires_at    DateTime?
+  created_at    DateTime?    @default(now())
+  updated_at    DateTime?    @updatedAt
+
+  restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  location   locations?  @relation(fields: [location_id], references: [id])
+  orders     orders[]
+
+  @@unique([restaurant_id, table_number])
+  @@index([restaurant_id])
+}
+
+model qr_codes {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  table_id      BigInt?
+  qr_data       String    @db.VarChar(512)
+  qr_type       QRType    @default(Table)
+  generated_url String?   @db.VarChar(255)
+  is_active     Boolean?  @default(true)
+  expires_at    DateTime?
+  created_at    DateTime? @default(now())
+
+  restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+}
+
+// ORDERS, ITEMS, ADDONS, OPTIONS, SPLIT-BILL, TIPS
+model orders {
+  id                   BigInt           @id @default(autoincrement())
+  order_no             String           @unique @db.VarChar(80)
+  restaurant_id        BigInt
+  location_id          BigInt?
+  customer_id          BigInt?
+  platform_user_id     BigInt? // link to users (if logged in)
+  table_id             BigInt?
+  channel              String? // web, mobile, phone, pos, third-party
+  order_source         OrderSource      @default(SelfService)
+  total_amount         Decimal          @db.Decimal(12, 2)
+  tax_amount           Decimal?         @db.Decimal(12, 2)
+  discount_amount      Decimal?         @db.Decimal(12, 2)
+  delivery_fee         Decimal?         @db.Decimal(12, 2)
+  tips_amount          Decimal?         @db.Decimal(12, 2)
+  net_amount           Decimal          @db.Decimal(12, 2)
+  currency             String           @default("INR") @db.VarChar(8)
+  status               OrderStatus      @default(Pending)
+  payment_method       PaymentMethod?
+  payment_status       PaymentStatus    @default(Unpaid)
+  payment_provider     PaymentProvider?
+  payment_provider_ref String?
+  delivery_type        delivery_type? // delivery, pickup, dine_in
+  delivery_address     String?          @db.VarChar(1000)
+  customer_note        String?          @db.VarChar(1000)
+  internal_note        String?
+  estimated_ready_at   DateTime?
+  created_at           DateTime?        @default(now())
+  updated_at           DateTime?        @updatedAt
+  deleted_at           DateTime?
+
+  restaurant          restaurants           @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  location            locations?            @relation(fields: [location_id], references: [id])
+  customer            customers?            @relation("CustomerRestaurantOrders", fields: [customer_id], references: [uuid])
+  platform_customer   users?                @relation("CustomerOrders", fields: [platform_user_id], references: [uuid])
+  table               restaurant_tables?    @relation(fields: [table_id], references: [id])
+  order_items         order_items[]
+  payments            payments[]
+  order_events        order_events[]
+  kitchen_tickets     kitchen_tickets[]
+  split_bills         split_bills[]
+  customer_feedbacks  customer_feedbacks[]
+  customersId         BigInt?
+  wallet_transactions wallet_transactions[]
+
+  @@unique([restaurant_id, order_no], map: "unique_restro_order_no")
+  @@index([restaurant_id, status])
+  @@index([restaurant_id, created_at])
+  @@index([customer_id])
+}
+
+// Order items
+model order_items {
+  id           BigInt    @id @default(autoincrement())
+  order_id     BigInt
+  food_item_id BigInt
+  variant_id   BigInt?
+  quantity     Int       @default(1)
+  unit_price   Decimal   @db.Decimal(12, 2)
+  total_price  Decimal   @db.Decimal(12, 2)
+  tax_amount   Decimal?  @db.Decimal(12, 2)
+  notes        String?   @db.VarChar(500)
+  created_at   DateTime? @default(now())
+  updated_at   DateTime? @updatedAt
+
+  orders                orders                  @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  food_items            food_items              @relation(fields: [food_item_id], references: [id], onDelete: Restrict)
+  food_variants         food_variants?          @relation(fields: [variant_id], references: [id], onDelete: Restrict)
+  order_addons          order_addons[]
+  item_options          order_item_options[]
+  kitchen_tickets_items kitchen_tickets_items[]
+
+  @@index([order_id])
+  @@index([food_item_id])
+}
+
+// Addons on order items
+model order_addons {
+  id            BigInt    @id @default(autoincrement())
+  order_item_id BigInt
+  addon_id      BigInt
+  price         Decimal   @db.Decimal(12, 2)
+  created_at    DateTime? @default(now())
+
+  order_items order_items @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+  food_addons food_addons @relation(fields: [addon_id], references: [id], onDelete: Restrict)
+}
+
+// Custom options for items (e.g., spice level, extra cheese)
+model order_item_options {
+  id            BigInt    @id @default(autoincrement())
+  order_item_id BigInt
+  key           String    @db.VarChar(100)
+  value         String    @db.VarChar(255)
+  price_delta   Decimal?  @db.Decimal(12, 2) // extra charge for option
+  created_at    DateTime? @default(now())
+
+  order_items order_items @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+
+  @@index([order_item_id])
+}
+
+// events for webhooks, notification, printing
+model order_events {
+  id         BigInt    @id @default(autoincrement())
+  order_id   BigInt
+  event_type String    @db.VarChar(100)
+  payload    Json
+  sent_to    String?
+  created_at DateTime? @default(now())
+
+  order orders @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+}
+
+// Split-bill records (one order may be split into multiple pay parts)
+model split_bills {
+  id          BigInt  @id @default(autoincrement())
+  order_id    BigInt
+  split_label String? // e.g., "Person A"
+  amount      Decimal @db.Decimal(12, 2)
+  paid        Boolean @default(false)
+  payment_id  BigInt?
+
+  created_at DateTime? @default(now())
+  order      orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  payment    payments? @relation(fields: [payment_id], references: [id], onDelete: SetNull)
+
+  @@index([order_id])
+}
+
+// Payments and refunds
+model payments {
+  id           BigInt          @id @default(autoincrement())
+  order_id     BigInt
+  amount       Decimal         @db.Decimal(12, 2)
+  currency     String          @db.VarChar(8)
+  provider     PaymentProvider @default(Other)
+  provider_ref String?
+  status       PaymentStatus   @default(Unpaid)
+  method       PaymentMethod?
+  captured_at  DateTime?
+  created_at   DateTime?       @default(now())
+
+  order       orders        @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  refunds     refunds[]
+  split_bills split_bills[]
+
+  @@index([order_id, status])
+}
+
+model refunds {
+  id         BigInt       @id @default(autoincrement())
+  payment_id BigInt
+  amount     Decimal      @db.Decimal(12, 2)
+  reason     String?      @db.VarChar(500)
+  status     RefundStatus @default(Pending)
+  created_at DateTime?    @default(now())
+
+  payment payments @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+}
+
+// idempotency keys to avoid duplicates
+model idempotency_keys {
+  id             BigInt    @id @default(autoincrement())
+  key            String    @unique
+  owner          String?
+  request_path   String?
+  request_method String?
+  response       Json?
+  user_id        BigInt?
+  restaurant_id  BigInt?
+  created_at     DateTime? @default(now())
+  expires_at     DateTime?
+
+  customers  customers?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  restaurant restaurants? @relation(fields: [restaurant_id], references: [uuid], onDelete: SetNull)
+}
+
+// ========================
+// KITCHEN / KDS / TICKETS
+// ========================
+model kitchen_tickets {
+  id            BigInt       @id @default(autoincrement())
+  restaurant_id BigInt
+  order_id      BigInt
+  ticket_no     String?      @db.VarChar(100)
+  status        TicketStatus @default(Pending)
+  notes         String?
+  created_at    DateTime?    @default(now())
+  updated_at    DateTime?    @updatedAt
+
+  restaurant restaurants             @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  order      orders                  @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  items      kitchen_tickets_items[]
+
+  @@index([restaurant_id, status])
+}
+
+model kitchen_tickets_items {
+  id               BigInt           @id @default(autoincrement())
+  ticket_id        BigInt
+  order_item_id    BigInt
+  quantity         Int
+  prepared_by_user BigInt?
+  station          String? // e.g., grill, fryer, drink
+  status           TicketItemStatus @default(Pending)
+  created_at       DateTime?        @default(now())
+  updated_at       DateTime?        @updatedAt
+
+  ticket     kitchen_tickets @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  order_item order_items     @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+
+  @@index([ticket_id])
+}
+
+// ========================
+// FEEDBACK & REVIEWS
+// ========================
+model customer_feedbacks {
+  id            BigInt       @id @default(autoincrement())
+  restaurant_id BigInt
+  order_id      BigInt
+  customer_id   BigInt?
+  rating        Int? // 1–5
+  review_text   String?      @db.VarChar(1000)
+  feedback_type FeedbackType @default(General)
+  is_resolved   Boolean?     @default(false)
+  resolved_by   BigInt?
+  resolved_at   DateTime?
+  created_at    DateTime?    @default(now())
+  updated_at    DateTime?    @updatedAt
+
+  restaurant     restaurants      @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  order          orders           @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  customer       customers?       @relation(fields: [customer_id], references: [id], onDelete: SetNull)
+  resolved_user  users?           @relation("CustomerFeedbacksresolved", fields: [resolved_by], references: [id], onDelete: SetNull)
+  feedback_media feedback_media[]
+
+  @@index([restaurant_id])
+  @@index([order_id])
+}
+
+// Optional media attached to feedback (images)
+model feedback_media {
+  id          BigInt    @id @default(autoincrement())
+  feedback_id BigInt
+  media_id    BigInt
+  created_at  DateTime? @default(now())
+
+  customer_feedbacks customer_feedbacks @relation(fields: [feedback_id], references: [id], onDelete: Cascade)
+  media              media              @relation(fields: [media_id], references: [id], onDelete: Cascade)
+}
+
+// CUSTOMERS, ADDRESSES, WALLET, REFERRALS, SEGMENTS
+model customers {
+  id   BigInt  @id @default(autoincrement())
+  uuid BigInt  @unique
+  name String? @db.VarChar(190)
+
+  restaurant_id       BigInt?
+  email               String?       @unique @db.VarChar(190)
+  mobile_no           String?       @unique @db.VarChar(12)
+  password            String?       @db.VarChar(255)
+  mpin                String?       @db.VarChar(100)
+  profile_image       String?       @db.VarChar(255)
+  role                CustomersRole @default(Guest)
+  status              UserStatus    @default(Active)
+  mobile_verified_at  DateTime?     @db.Timestamp(6)
+  email_verified_at   DateTime?     @db.Timestamp(6)
+  is_login_otp_enable Boolean?      @default(false)
+  user_type           UserType      @default(Customer)
+  is_email_verified   Boolean       @default(false)
+  is_active           Boolean       @default(true)
+  delete_status       Int           @default(0)
+  deleted_at          DateTime?     @db.Timestamp(6)
+  remember_token      String?       @db.VarChar(100)
+  last_login_at       DateTime?     @db.Timestamp(6)
+  created_at          DateTime?     @db.Timestamp(6)
+  updated_at          DateTime?     @db.Timestamp(6)
+
+  loyalty_points Int?     @default(0)
+  total_orders   Int?     @default(0)
+  total_spent    Decimal? @default("0.00") @db.Decimal(12, 2)
+  is_guest       Boolean? @default(true)
+
+  restaurant              restaurants?              @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  addresses               customer_addresses[]
+  wallets                 customer_wallets[]
+  orders                  orders[]                  @relation("CustomerRestaurantOrders")
+  feedbacks               customer_feedbacks[]
+  customer_segment_links  customer_segment_links[]
+  payouts_requested       payouts[]                 @relation("payouts_requested_by")
+  idempotency_keys        idempotency_keys[]
+  customer_session_tokens customer_session_tokens[]
+
+  // @@unique([restaurant_id, email], map: "unique_customer_email_per_restaurant")
+}
+
+model customer_addresses {
+  id            BigInt    @id @default(autoincrement())
+  customer_id   BigInt
+  label         String?   @db.VarChar(50)
+  address_line1 String    @db.VarChar(255)
+  address_line2 String?   @db.VarChar(255)
+  city          String?   @db.VarChar(100)
+  state         String?   @db.VarChar(100)
+  postal_code   String?   @db.VarChar(20)
+  latitude      Decimal?  @db.Decimal(10, 8)
+  longitude     Decimal?  @db.Decimal(11, 8)
+  is_default    Boolean?  @default(false)
+  created_at    DateTime? @default(now())
+  updated_at    DateTime? @updatedAt
+
+  customer customers @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+}
+
+model customer_wallets {
+  id           BigInt                @id @default(autoincrement())
+  customer_id  BigInt
+  balance      Decimal               @default("0.00") @db.Decimal(12, 2)
+  currency     String?               @default("INR") @db.VarChar(10)
+  created_at   DateTime?             @default(now())
+  updated_at   DateTime?             @updatedAt
+  customer     customers             @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  transactions wallet_transactions[]
+}
+
+model wallet_transactions {
+  id               BigInt        @id @default(autoincrement())
+  wallet_id        BigInt
+  type             WalletTxnType
+  amount           Decimal       @db.Decimal(12, 2)
+  source           WalletSource?
+  description      String?       @db.VarChar(255)
+  related_order_id BigInt?
+  created_at       DateTime?     @default(now())
+
+  wallet customer_wallets @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
+  order  orders?          @relation(fields: [related_order_id], references: [id], onDelete: SetNull)
+}
+
+// Referral system
+model customer_referrals {
+  id                   BigInt    @id @default(autoincrement())
+  restaurant_id        BigInt
+  referrer_customer_id BigInt?
+  referred_phone       String?   @db.VarChar(20)
+  reward_amount        Decimal?  @db.Decimal(12, 2)
+  redeemed             Boolean?  @default(false)
+  created_at           DateTime? @default(now())
+
+  restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+}
+
+// Segments / loyalty buckets & links
+model customer_segments {
+  id             BigInt    @id @default(autoincrement())
+  restaurant_id  BigInt
+  name           String    @db.VarChar(100)
+  description    String?   @db.VarChar(255)
+  min_orders     Int?      @default(0)
+  min_spent      Decimal?  @default("0.00") @db.Decimal(12, 2)
+  priority_level Int?      @default(1)
+  is_active      Boolean?  @default(true)
+  created_at     DateTime? @default(now())
+  updated_at     DateTime? @updatedAt
+
+  restaurant     restaurants              @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  customer_links customer_segment_links[]
+}
+
+model customer_segment_links {
+  id          BigInt    @id @default(autoincrement())
+  customer_id BigInt
+  segment_id  BigInt
+  assigned_at DateTime? @default(now())
+
+  customer         customers         @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  customer_segment customer_segments @relation(fields: [segment_id], references: [id], onDelete: Cascade)
+
+  @@unique([customer_id, segment_id], map: "unique_customer_segment")
+}
+
+// ========================
+// COUPONS, TAXES, INVOICES, PAYOUTS
+// ========================
+
+// ======= Enums =======
+enum PlanType {
+  Prepaid
+  Postpaid
+  Hybrid
+}
+
+enum BillingMetric {
+  Orders
+  Sales
+  Users
+  Device
+  API
+}
+
+// ======= Subscription Plans (master definition) =======
+// model subscription_plans {
+//   id            BigInt         @id @default(autoincrement())
+//   name          String         @db.VarChar(120)
+//   description   String?        @db.VarChar(255)
+//   plan_type     PlanType       @default(Prepaid) // Prepaid | Postpaid | Hybrid
+//   base_price    Decimal?       @db.Decimal(12, 2) // Fixed base charge
+//   duration_days Int?           @default(30)
+//   billing_type  BillingMetric? // Orders | Sales
+//   billing_rate  Decimal?       @db.Decimal(12, 4) // ₹ or % per metric (for postpaid/hybrid)
+//   is_active     Boolean        @default(true)
+//   currency      String?        @default("INR") @db.VarChar(8)
+//   auto_renew    Boolean?       @default(true)
+//   features      Json? // {"kds": true, "analytics": false, ...}
+//   created_at    DateTime?      @default(now())
+//   updated_at    DateTime?      @updatedAt
+
+//   plan_tiers              subscription_tiers[]
+//   restaurantSubscriptions restaurant_subscriptions[]
+// }
+model subscription_plans {
+  id          BigInt  @id @default(autoincrement())
+  name        String  @db.VarChar(120)
+  description String? @db.VarChar(255)
+
+  // Only Prepaid (as you requested)
+  plan_type     PlanType @default(Prepaid)
+  duration_days Int      @default(30)
+
+  // Monthly fee
+  base_price Decimal @db.Decimal(12, 2) // can be 0 or any amount
+  currency   String  @default("INR") @db.VarChar(8)
+
+  // Order Limit System
+  max_orders         Int? // Example: 500 orders included
+  extra_order_charge Decimal? @db.Decimal(12, 2) // ₹3 per extra order (optional)
+
+  // --- COMMISSION SYSTEM (PERFECT FOR SALES-BASED COMMISSION) ---
+  sales_commission_percent      Decimal? @db.Decimal(5, 2) // like 1.50%
+  sales_commission_min_amount   Decimal? @db.Decimal(12, 2) // min ₹ amount
+  sales_commission_after_orders Int? // Example: 500
+
+  // Tier Support (optional)
+  has_tiers Boolean @default(false)
+  features  Json?
+
+  is_active  Boolean @default(true)
+  auto_renew Boolean @default(true)
+
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
+
+  plan_tiers              subscription_tiers[]
+  restaurantSubscriptions restaurant_subscriptions[]
+}
+
+// ======= Plan tiers to support multiple tiers in one plan =======
+// model subscription_tiers {
+//   id                 BigInt    @id @default(autoincrement())
+//   plan_id            BigInt
+//   order_min          Int? // inclusive
+//   order_max          Int? // inclusive
+//   min_bill_amount    Decimal?  @db.Decimal(12, 2)
+//   commission_percent Decimal?  @db.Decimal(5, 2)
+//   extra_order_rate   Decimal?  @db.Decimal(12, 4)
+//   fixed_price        Decimal?  @db.Decimal(12, 2)
+//   created_at         DateTime? @default(now())
+//   updated_at         DateTime? @updatedAt
+
+//   subscription_plan        subscription_plans         @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+//   restaurant_subscriptions restaurant_subscriptions[]
+
+//   @@index([plan_id])
+// }
+model subscription_tiers {
+  id      BigInt @id @default(autoincrement())
+  plan_id BigInt
+
+  order_min Int?
+  order_max Int?
+
+  fixed_price Decimal? @db.Decimal(12, 2)
+
+  // COMMISSION OVERRIDES FOR THIS TIER
+  sales_commission_percent      Decimal? @db.Decimal(5, 2)
+  sales_commission_min_amount   Decimal? @db.Decimal(12, 2)
+  sales_commission_after_orders Int?
+
+  // Extra orders charge override
+  extra_order_charge Decimal? @db.Decimal(12, 2)
+
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
+
+  subscription_plan        subscription_plans         @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  restaurant_subscriptions restaurant_subscriptions[]
+}
+
+// ======= Track restaurant subscription instance =======
+// model restaurant_subscriptions {
+//   id              BigInt    @id @default(autoincrement())
+//   restaurant_id   BigInt
+//   current_tier_id BigInt?
+//   plan_id         BigInt
+//   start_date      DateTime  @default(now())
+//   end_date        DateTime?
+//   next_billing_at DateTime?
+//   is_active       Boolean   @default(true)
+//   usage_orders    Int?      @default(0)
+//   usage_sales     Decimal?  @db.Decimal(12, 2)
+
+//   created_at DateTime? @default(now())
+//   updated_at DateTime? @updatedAt
+
+//   restaurant   restaurants         @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+//   plan         subscription_plans  @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+//   current_tier subscription_tiers? @relation(fields: [current_tier_id], references: [id])
+
+//   @@index([restaurant_id])
+//   @@index([plan_id])
+// }
+model restaurant_subscriptions {
+  id              BigInt  @id @default(autoincrement())
+  restaurant_id   BigInt
+  plan_id         BigInt
+  current_tier_id BigInt?
+
+  start_date      DateTime  @default(now())
+  end_date        DateTime?
+  next_billing_at DateTime?
+
+  is_active Boolean @default(true)
+
+  used_orders       Int      @default(0) // count orders this cycle
+  earned_commission Decimal? @db.Decimal(12, 2) // track sales commission every cycle
+
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
+
+  restaurant   restaurants         @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  plan         subscription_plans  @relation(fields: [plan_id], references: [id])
+  current_tier subscription_tiers? @relation(fields: [current_tier_id], references: [id])
+}
+
+model coupons {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  code          String    @db.VarChar(60)
+  description   String?
+  discount_type String? // percentage/fixed
+  value         Decimal?  @db.Decimal(12, 2)
+  max_uses      Int?
+  used_count    Int?      @default(0)
+  valid_from    DateTime?
+  valid_to      DateTime?
+  created_at    DateTime? @default(now())
+
+  restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+
+  @@unique([restaurant_id, code])
+  @@index([restaurant_id])
+}
+
+model taxes {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  name          String    @db.VarChar(100)
+  rate          Decimal   @db.Decimal(5, 2)
+  is_compound   Boolean   @default(false)
+  created_at    DateTime? @default(now())
+
+  restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+
+  @@index([restaurant_id])
+}
+
+model invoices {
+  id            BigInt  @id @default(autoincrement())
+  restaurant_id BigInt
+  invoice_no    String  @db.VarChar(100)
+  amount        Decimal @db.Decimal(12, 2)
+  currency      String  @db.VarChar(8)
+  type          String? @db.VarChar(32)
+
+  due_date   DateTime?
+  paid_at    DateTime?
+  status     InvoiceStatus @default(Unpaid)
+  metadata   Json?
+  created_at DateTime?     @default(now())
+  updated_at DateTime?     @updatedAt
+
+  restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+
+  @@unique([restaurant_id, invoice_no])
+  @@index([restaurant_id, status])
+}
+
+model payouts {
+  id            BigInt          @id @default(autoincrement())
+  restaurant_id BigInt
+  amount        Decimal         @db.Decimal(12, 2)
+  commission    Decimal?        @db.Decimal(12, 2)
+  net_payout    Decimal?        @db.Decimal(12, 2)
+  payout_date   DateTime?
+  provider      PayoutProvider? @default(Bank)
+  provider_ref  String?
+  status        PayoutStatus    @default(Pending)
+  remarks       String?
+  requested_by  BigInt?
+  created_at    DateTime?       @default(now())
+  updated_at    DateTime?       @updatedAt
+
+  restaurant     restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  requested_user customers?  @relation("payouts_requested_by", fields: [requested_by], references: [id], onDelete: SetNull)
+
+  @@index([restaurant_id, status])
+}
+
+// INVENTORY
+model inventory_items {
+  id            BigInt                   @id @default(autoincrement())
+  restaurant_id BigInt
+  location_id   BigInt?
+  sku           String                   @db.VarChar(100)
+  name          String                   @db.VarChar(200)
+  unit          String?                  @db.VarChar(20)
+  current_stock Decimal?                 @db.Decimal(12, 3)
+  reorder_point Decimal?                 @db.Decimal(12, 3)
+  created_at    DateTime?                @default(now())
+  updated_at    DateTime?                @updatedAt
+  transactions  inventory_transactions[]
+
+  @@index([restaurant_id, sku])
+}
+
+model inventory_transactions {
+  id                BigInt    @id @default(autoincrement())
+  inventory_item_id BigInt
+  change_qty        Decimal   @db.Decimal(12, 3)
+  reason            String?
+  related_order_id  BigInt?
+  created_at        DateTime? @default(now())
+
+  inventory_items inventory_items @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
+  food_variants   food_variants?  @relation(fields: [food_variantsId], references: [id])
+  food_variantsId BigInt?
+
+  @@index([inventory_item_id])
+}
+
+// ========================
+// DEVICES, WEBHOOKS, AUDIT
+// ========================
+model devices {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt?
+  location_id   BigInt?
+  name          String?   @db.VarChar(150)
+  type          String? // printer, pos, kiosk
+  identifier    String?   @db.VarChar(255)
+  last_seen     DateTime?
+  meta          Json?
+  created_at    DateTime? @default(now())
+
+  restaurant restaurants? @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  location   locations?   @relation(fields: [location_id], references: [id])
+
+  @@index([restaurant_id])
+  @@index([location_id])
+}
+
+model webhooks {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt?
+  url           String
+  events        String // comma-separated
+  secret        String?
+  is_active     Boolean   @default(true)
+  created_at    DateTime? @default(now())
+  updated_at    DateTime? @updatedAt
+
+  @@index([restaurant_id])
+}
+
+model audit_logs {
+  id          BigInt    @id @default(autoincrement())
+  tenant_id   BigInt?
+  user_id     BigInt?
+  action      String    @db.VarChar(150)
+  resource    String?   @db.VarChar(150)
+  resource_id String?
+  meta        Json?
+  created_at  DateTime? @default(now())
+
+  @@index([tenant_id, user_id])
+}
+
+// ========================
+// ANALYTICS / AGGREGATES / METRICS
+// ========================
+model aggregated_metrics {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  metric_date   DateTime
+  orders_count  Int       @default(0)
+  sales_total   Decimal   @default("0") @db.Decimal(14, 2)
+  created_at    DateTime? @default(now())
+
+  @@unique([restaurant_id, metric_date])
+}
+
+// heatmap / session analytics basics
+model traffic_metrics {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  event_time    DateTime
+  event_type    String // visit, menu_view, order_placed
+  meta          Json?
+  created_at    DateTime? @default(now())
+
+  @@index([restaurant_id, event_time])
+}
+
+// ========================
+// IDEMPOTENCY & FRAUD PREVENTION
+// ========================
+model fraud_events {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt?
+  user_id       BigInt?
+  type          String
+  data          Json
+  created_at    DateTime? @default(now())
+
+  @@index([restaurant_id, user_id])
+}
+
+// ========================
+// MISC
+// ========================
+// Optional: offline queued orders for retry sync
+model offline_queued_orders {
+  id            BigInt    @id @default(autoincrement())
+  restaurant_id BigInt
+  payload       Json
+  status        String    @default("pending") @db.VarChar(50)
+  tries         Int       @default(0)
+  created_at    DateTime? @default(now())
+  updated_at    DateTime? @updatedAt
+
+  @@index([restaurant_id, status])
+}
