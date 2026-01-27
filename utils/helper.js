@@ -27,15 +27,27 @@ const isValidExpiry = (expiryDate, referenceDate = ISTDate()) => {
   return current.isBefore(expire) || current.isSame(expire);
 }
 
+// const getDayUTC = (dateStr, isStart = false) => {
+//   if (isStart) {
+//     // Start of the day UTC
+//     return new Date(`${dateStr}T00:00:00Z`).toISOString();
+//   } else {
+//     // End of the day UTC  
+//     return new Date(`${dateStr}T23:59:59Z`).toISOString();
+//   }
+// };
+
 const getDayUTC = (dateStr, isStart = false) => {
-  if (isStart) {
-    // Start of the day UTC
-    return new Date(`${dateStr}T00:00:00Z`).toISOString();
-  } else {
-    // End of the day UTC  
-    return new Date(`${dateStr}T23:59:59Z`).toISOString();
+  if (dateStr && isStart) {
+    // IST start of day → UTC
+    return new Date(`${dateStr}T00:00:00+05:30`).toISOString();
+  } else if(dateStr) {
+    // IST end of day → UTC
+    return new Date(`${dateStr}T23:59:59+05:30`).toISOString();
   }
+  return null
 };
+
 // OTP Generator
 const randomUUID = () => Math.floor(100000 + Math.random() * 900000);
 

@@ -9,11 +9,11 @@ const {
   getOrderByIdValidation,
   deleteOrderValidation,
 } = require('../validators/orderValidator');
-const { CustomerAuthMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 // Orders CRUD
-router.post('/create',CustomerAuthMiddleware, orderController.placeOrder);
-router.post('/get-list',CustomerAuthMiddleware, orderController.getOrderList);
+router.post('/create', authMiddleware, orderController.placeOrder);
+router.post('/get-list', authMiddleware, orderController.getOrderList);
 
 // router.get('/:id', getOrderByIdValidation, orderController.getOrderById);
 // router.put('/:id', updateOrderValidation, orderController.updateOrder);

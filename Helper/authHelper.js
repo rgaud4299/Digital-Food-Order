@@ -39,7 +39,6 @@ exports.handleSuccessfulLogin = async (
 
     // ✅ Token + Session creation
     const tokenPayload = {
-        id: parseInt(user.uuid),
         uuid: user.uuid,
         email: user.email,
         role: user.role,
@@ -51,15 +50,18 @@ exports.handleSuccessfulLogin = async (
     // let expiresAt = ISTDate(dayjs().add(value, unit).toDate());
     let expiresAt = parseDurationToExpiresAt(process.env.JWT_EXPIRES_IN);
 
+
+
     await prisma.session_tokens.create({
         data: {
-            user_id: user.uuid,
+            owner_id: user.uuid,
+            owner_type: user.role,
             token,
             token_type: "app",
             expires_at: expiresAt,
             status: "Active",
-            created_at: now,
-            updated_at: now,
+            created_at: ISTDate(),
+            updated_at: ISTDate(),
         },
     });
 

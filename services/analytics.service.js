@@ -9,8 +9,8 @@ async function getOrderStats(restaurant_id, days = 30) {
 
   const orders = await prisma.orders.findMany({
     where: {
-      restaurant_id: BigInt(restaurant_id)
-      // created_at: { gte: since },
+      restaurant_id: BigInt(restaurant_id),
+      created_at: { gte: since },
       // status: { in: ["Pending"] },
     }
   });
@@ -33,7 +33,7 @@ async function getOrderStats(restaurant_id, days = 30) {
 
   summary.avg_order_value =
     summary.total_orders > 0
-      ? summary.total_sales / summary.total_orders
+      ? (summary.total_sales / summary.total_orders).toFixed(2)
       : 0;
 
   return summary;

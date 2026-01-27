@@ -549,9 +549,10 @@ exports.loginCustomer = async (req, res) => {
     // let expiresAt = ISTDate(dayjs().add(value, unit).toDate());
     let expiresAt = parseDurationToExpiresAt(process.env.JWT_EXPIRES_IN);
 
-    await prisma.customer_session_tokens.create({
+    await prisma.session_tokens.create({
       data: {
-        cust_id: customer.uuid,
+        owner_id: customer.uuid,
+        owner_type: "Customer",
         token,
         token_type: "app",
         expires_at: expiresAt,

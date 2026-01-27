@@ -225,7 +225,7 @@ model users {
   permissions        user_permissions[]
   orders             orders[]             @relation("CustomerOrders")
   customer_feedbacks customer_feedbacks[] @relation("CustomerFeedbacksresolved")
-  session_tokens     session_tokens[]
+  // session_tokens     session_tokens[]
 
   @@index([restaurant_id, role])
 }
@@ -405,33 +405,49 @@ model api_keys {
   @@index([restaurant_id])
 }
 
-// Session or socket tokens
+// // Session or socket tokens
+// model session_tokens {
+//   id         BigInt      @id @default(autoincrement())
+//   user_id    BigInt
+//   token      String      @unique @db.VarChar
+//   token_type String?     @db.VarChar(10)
+//   expires_at DateTime?   @db.Timestamp(6)
+//   status     TokenStatus @default(Active)
+//   session_id String?     @db.VarChar(255)
+//   created_at DateTime?   @db.Timestamp(6)
+//   updated_at DateTime?   @db.Timestamp(6)
+
+//   user users @relation(fields: [user_id], references: [uuid], onDelete: Cascade)
+// }
+
+// model customer_session_tokens {
+//   id         BigInt      @id @default(autoincrement())
+//   cust_id    BigInt
+//   token      String      @unique @db.VarChar
+//   token_type String?     @db.VarChar(10)
+//   expires_at DateTime?   @db.Timestamp(6)
+//   status     TokenStatus @default(Active)
+//   session_id String?     @db.VarChar(255)
+//   created_at DateTime?   @db.Timestamp(6)
+//   updated_at DateTime?   @db.Timestamp(6)
+
+//   customer customers @relation(fields: [cust_id], references: [uuid], onDelete: Cascade)
+// }
+
 model session_tokens {
-  id         BigInt      @id @default(autoincrement())
-  user_id    BigInt
+  id BigInt @id @default(autoincrement())
+
+  owner_id   BigInt
+  owner_type UserType // User | Customer
+
   token      String      @unique @db.VarChar
   token_type String?     @db.VarChar(10)
   expires_at DateTime?   @db.Timestamp(6)
   status     TokenStatus @default(Active)
   session_id String?     @db.VarChar(255)
-  created_at DateTime?   @db.Timestamp(6)
-  updated_at DateTime?   @db.Timestamp(6)
 
-  user users @relation(fields: [user_id], references: [uuid], onDelete: Cascade)
-}
-
-model customer_session_tokens {
-  id         BigInt      @id @default(autoincrement())
-  cust_id    BigInt
-  token      String      @unique @db.VarChar
-  token_type String?     @db.VarChar(10)
-  expires_at DateTime?   @db.Timestamp(6)
-  status     TokenStatus @default(Active)
-  session_id String?     @db.VarChar(255)
-  created_at DateTime?   @db.Timestamp(6)
-  updated_at DateTime?   @db.Timestamp(6)
-
-  customer customers @relation(fields: [cust_id], references: [uuid], onDelete: Cascade)
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
 }
 
 // Push tokens for notifications
@@ -647,7 +663,7 @@ model combo_items {
 model restaurant_tables {
   id            BigInt       @id @default(autoincrement())
   restaurant_id BigInt
-  location_id   BigInt?
+  location      BigInt?
   table_number  String       @db.VarChar(50)
   qr_code_url   String?      @db.VarChar(255)
   is_active     Boolean      @default(true)
@@ -655,10 +671,11 @@ model restaurant_tables {
   expires_at    DateTime?
   created_at    DateTime?    @default(now())
   updated_at    DateTime?    @updatedAt
+  location_id   BigInt?
 
   restaurant restaurants @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
-  location   locations?  @relation(fields: [location_id], references: [id])
   orders     orders[]
+  locations  locations?  @relation(fields: [location_id], references: [id])
 
   @@unique([restaurant_id, table_number])
   @@index([restaurant_id])
@@ -706,8 +723,8 @@ model orders {
   customer_note        String?          @db.VarChar(1000)
   internal_note        String?
   estimated_ready_at   DateTime?
-  created_at           DateTime?        @default(now())
-  updated_at           DateTime?        @updatedAt
+  created_at           DateTime?
+  updated_at           DateTime?
   deleted_at           DateTime?
 
   restaurant          restaurants           @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
@@ -721,7 +738,6 @@ model orders {
   kitchen_tickets     kitchen_tickets[]
   split_bills         split_bills[]
   customer_feedbacks  customer_feedbacks[]
-  customersId         BigInt?
   wallet_transactions wallet_transactions[]
 
   @@unique([restaurant_id, order_no], map: "unique_restro_order_no")
@@ -732,26 +748,28 @@ model orders {
 
 // Order items
 model order_items {
-  id           BigInt    @id @default(autoincrement())
-  order_id     BigInt
+  id           BigInt      @id @default(autoincrement())
+  order_no     String
   food_item_id BigInt
   variant_id   BigInt?
-  quantity     Int       @default(1)
-  unit_price   Decimal   @db.Decimal(12, 2)
-  total_price  Decimal   @db.Decimal(12, 2)
-  tax_amount   Decimal?  @db.Decimal(12, 2)
-  notes        String?   @db.VarChar(500)
-  created_at   DateTime? @default(now())
-  updated_at   DateTime? @updatedAt
+  quantity     Int         @default(1)
+  unit_price   Decimal     @db.Decimal(12, 2)
+  total_price  Decimal     @db.Decimal(12, 2)
+  tax_amount   Decimal?    @db.Decimal(12, 2)
+  notes        String?     @db.VarChar(500)
+  status       OrderStatus @default(Pending)
 
-  orders                orders                  @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
+
+  orders                orders                  @relation(fields: [order_no], references: [order_no], onDelete: Cascade)
   food_items            food_items              @relation(fields: [food_item_id], references: [id], onDelete: Restrict)
   food_variants         food_variants?          @relation(fields: [variant_id], references: [id], onDelete: Restrict)
   order_addons          order_addons[]
   item_options          order_item_options[]
   kitchen_tickets_items kitchen_tickets_items[]
 
-  @@index([order_id])
+  @@index([order_no])
   @@index([food_item_id])
 }
 
@@ -784,15 +802,15 @@ model order_item_options {
 // events for webhooks, notification, printing
 model order_events {
   id         BigInt    @id @default(autoincrement())
-  order_id   BigInt
+  order_no   String
   event_type String    @db.VarChar(100)
   payload    Json
   sent_to    String?
   created_at DateTime? @default(now())
 
-  order orders @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  order orders @relation(fields: [order_no], references: [order_no], onDelete: Cascade)
 
-  @@index([order_id])
+  @@index([order_no])
 }
 
 // Split-bill records (one order may be split into multiple pay parts)
@@ -828,7 +846,6 @@ model payments {
   refunds     refunds[]
   split_bills split_bills[]
 
-  @@index([order_id, status])
 }
 
 model refunds {
@@ -865,7 +882,7 @@ model idempotency_keys {
 model kitchen_tickets {
   id            BigInt       @id @default(autoincrement())
   restaurant_id BigInt
-  order_id      BigInt
+  order_no      String
   ticket_no     String?      @db.VarChar(100)
   status        TicketStatus @default(Pending)
   notes         String?
@@ -873,7 +890,7 @@ model kitchen_tickets {
   updated_at    DateTime?    @updatedAt
 
   restaurant restaurants             @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
-  order      orders                  @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  order      orders                  @relation(fields: [order_no], references: [order_no], onDelete: Cascade)
   items      kitchen_tickets_items[]
 
   @@index([restaurant_id, status])
@@ -966,15 +983,14 @@ model customers {
   total_spent    Decimal? @default("0.00") @db.Decimal(12, 2)
   is_guest       Boolean? @default(true)
 
-  restaurant              restaurants?              @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
-  addresses               customer_addresses[]
-  wallets                 customer_wallets[]
-  orders                  orders[]                  @relation("CustomerRestaurantOrders")
-  feedbacks               customer_feedbacks[]
-  customer_segment_links  customer_segment_links[]
-  payouts_requested       payouts[]                 @relation("payouts_requested_by")
-  idempotency_keys        idempotency_keys[]
-  customer_session_tokens customer_session_tokens[]
+  restaurant             restaurants?             @relation(fields: [restaurant_id], references: [uuid], onDelete: Cascade)
+  addresses              customer_addresses[]
+  wallets                customer_wallets[]
+  orders                 orders[]                 @relation("CustomerRestaurantOrders")
+  feedbacks              customer_feedbacks[]
+  customer_segment_links customer_segment_links[]
+  payouts_requested      payouts[]                @relation("payouts_requested_by")
+  idempotency_keys       idempotency_keys[]
 
   // @@unique([restaurant_id, email], map: "unique_customer_email_per_restaurant")
 }

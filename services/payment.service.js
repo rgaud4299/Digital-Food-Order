@@ -1,5 +1,5 @@
 // services/payment.service.js
-const prisma = require('../utils/prisma'); 
+const prisma = require('../utils/prisma');
 const { generateRandomTxnId, ISTDate } = require('../utils/helper');
 
 //
@@ -11,16 +11,26 @@ const toNum = (v) => (v === null || v === undefined ? null : Number(v));
  * Unpaid means payment_status = 'Unpaid' (per your schema default).
  */
 async function getUnpaidOrdersForCustomer({ customer_id, restaurant_id }) {
+  const now = new Date();
+
+  // ⏱️ current time se 24 hours pehle
+  const before24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
   return prisma.orders.findMany({
     where: {
       customer_id: toNum(customer_id),
       restaurant_id: toNum(restaurant_id),
-      payment_status: 'Unpaid',
-      status: { not: 'Cancelled' }, // ignore cancelled orders
+      payment_status: "Unpaid",
+      status: "Completed",
+      created_at: {
+        gte: before24h,
+        lte: now
+      }
     },
-    orderBy: { created_at: 'asc' },
+    orderBy: { created_at: "asc" },
   });
 }
+
 
 /**
  * Initiate a grouped payment for all unpaid orders of a customer
@@ -30,7 +40,7 @@ async function getUnpaidOrdersForCustomer({ customer_id, restaurant_id }) {
  * Note: The external gateway should be invoked using group_txn_id and amount = totalAmount.
  * On callback, mark all payments with provider_ref = group_txn_id as paid.
  */
-async function initiateGroupPayment({ customer_id, restaurant_id, provider = 'Paytm', method = 'UPI', metadata = {} }) {
+async function initiateGroupPayment({ customer_id, restaurant_id, provider = 'Cash', method = 'Cash', metadata = {} }) {
   if (!customer_id || !restaurant_id) throw new Error('customer_id and restaurant_id required');
 
   const unpaidOrders = await getUnpaidOrdersForCustomer({ customer_id, restaurant_id });
@@ -139,24 +149,24 @@ async function handlePaymentCallback({ provider_ref, provider, status, provider_
             where: { id: toNum(p.order_id) },
             data: {
               payment_status: 'Paid',
-              status: 'Confirmed',
+              // status: 'Completed',
               updated_at: now,
             },
           });
 
           // record wallet_transactions or order_events optionally
-          await tx.order_events.create({
-            data: {
-              order_id: toNum(p.order_id),
-              event_type: 'PaymentCaptured',
-              payload: { provider_ref, provider, provider_payload },
-              created_at: now,
-            },
-          });
+          // await tx.order_events.create({
+          //   data: {
+          //     order_id: toNum(p.order_id),
+          //     event_type: 'PaymentCaptured',
+          //     payload: { provider_ref, provider, provider_payload },
+          //     created_at: now,
+          //   },
+          // });
         }
       });
 
-      return { status: 'SUCCESS', message: 'All linked payments marked Paid' };
+      return { status: 'SUCCESS', message: 'All payments marked Paid' };
     } catch (err) {
       console.error('handlePaymentCallback error', err);
       return { status: 'FAILED', message: 'Failed to mark payments as paid' };

@@ -4,6 +4,6 @@ const router = express.Router();
 const { getRestaurantAnalytics } = require("../controllers/Analytics Dashboard/analyticsController");
 const {authMiddleware} = require('../middleware/auth');
 
-router.get("/restaurant", getRestaurantAnalytics);
+router.get("/restaurant",authMiddleware, getRestaurantAnalytics);
 
 module.exports = router;
