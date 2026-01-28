@@ -2,7 +2,7 @@ const dayjs = require("dayjs");
 const { generateToken } = require("../utils/jwt");
 const prisma = require("../utils/prisma");
 const { ISTFormat, ISTDate, parseDurationToExpiresAt } = require("../utils/helper");
-const { success } = require("../utils/response");
+const { success,error } = require("../utils/response");
 
 exports.handleSuccessfulLogin = async (
     user,
