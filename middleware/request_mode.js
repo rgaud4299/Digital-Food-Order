@@ -31,7 +31,7 @@ async function responseModeTokenMiddleware(req, res, next) {
         const authHeader = req.headers["authorization"];
 
         if (!authHeader || !authHeader.startsWith("Bearer")) {
-            return error(res, "User Unauthenticated", RESPONSE_CODES.FAILED, 401);
+            return error(res, "User Unauthenticated", RESPONSE_CODES.FAILED, 400);
         }
 
         const token = authHeader.substring(7);
@@ -55,7 +55,7 @@ async function responseModeTokenMiddleware(req, res, next) {
                 res,
                 "User already logged out or Token not found",
                 RESPONSE_CODES.VALIDATION_ERROR,
-                401
+                400
             );
         }
 
@@ -65,7 +65,7 @@ async function responseModeTokenMiddleware(req, res, next) {
                 res,
                 `Token type mismatch. Expected ${request_mode} but got ${accessToken.token_type}`,
                 RESPONSE_CODES.FAILED,
-                401
+                400
             );
         }
 
@@ -77,7 +77,7 @@ async function responseModeTokenMiddleware(req, res, next) {
             // 2️⃣ JWT verify
             const decoded = verifyToken(token);
             if (!decoded) {
-                return error(res, "Invalid Bearer Token ", RESPONSE_CODES.FAILED, 401);
+                return error(res, "Invalid Bearer Token ", RESPONSE_CODES.FAILED, 400);
             }
         }
         // 8️⃣ IP whitelist check → only if request_mode !== "app" AND token_type === "api"
@@ -107,7 +107,7 @@ async function responseModeTokenMiddleware(req, res, next) {
             const now = ISTDateNotformat();
             const expires = ISTDateNotformat(accessToken.expires_at);
             if (now.isAfter(expires)) {
-                return error(res, "Token expired", RESPONSE_CODES.FAILED, 401);
+                return error(res, "Token expired", RESPONSE_CODES.FAILED, 400);
             }
         }
 
@@ -117,7 +117,7 @@ async function responseModeTokenMiddleware(req, res, next) {
                 res,
                 "Unauthorized (Inactive Token)",
                 RESPONSE_CODES.FAILED,
-                401
+                400
             );
         }
 

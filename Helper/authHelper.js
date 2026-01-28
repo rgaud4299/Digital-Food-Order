@@ -34,7 +34,7 @@ exports.handleSuccessfulLogin = async (
 
     // If failed, just stop here (no token generation)
     if (status === "Failed") {
-        return error(res, "Incorrect password", RESPONSE_CODES.FAILED, 401);
+        return error(res, "Incorrect password", RESPONSE_CODES.FAILED, 400);
     }
 
     // ✅ Token + Session creation

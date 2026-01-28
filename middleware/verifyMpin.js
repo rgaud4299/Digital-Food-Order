@@ -33,7 +33,7 @@ async function verifyMpinController(req, res) {
     const isValid = await verifyMpin(user_id, mPin);
 
     if (!isValid) {
-      return error(res, "Invalid MPIN", RESPONSE_CODES.FAILED, 401);
+      return error(res, "Invalid MPIN", RESPONSE_CODES.FAILED, 400);
     }
 
     return success(res, "MPIN verified successfully");
@@ -61,7 +61,7 @@ async function verifyMpinMiddleware(req, res, next) {
     const isValid = await verifyMpin(user_id, mPin);
 
     if (!isValid) {
-      return error(res, "Oops..! Invalid MPIN", RESPONSE_CODES.FAILED, 401);
+      return error(res, "Oops..! Invalid MPIN", RESPONSE_CODES.FAILED, 400);
     }
 
     next(); // ✅ MPIN valid, continue request

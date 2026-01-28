@@ -4,7 +4,7 @@ const authorizeRole = (allowedRoles = []) => {
       const userRole = req.user?.role;
       console.log(userRole);
       if (!userRole) {
-        return res.status(401).json({ message: "User Role missing in token" });
+        return res.status(400).json({ message: "User Role missing in token" });
       }
       if (!allowedRoles.includes(userRole)) {
         return res.status(403).json({ message: ` Unauthorized access ,Role must be ${allowedRoles[0]} ` });

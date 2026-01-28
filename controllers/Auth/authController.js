@@ -66,7 +66,7 @@ exports.register = async (req, res) => {
 
     // const responseMsg = await sendDynamicMessageQ(msg_data_mobile)
     // if (!responseMsg.success) {
-    //   return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 401);
+    //   return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 400);
     // }
     return success(res, `OTP sent for  mobile verification ${mobile_Otp}`, {
       Mobile: maskMobile(mobile_no),
@@ -203,7 +203,7 @@ exports.loginUser = async (req, res) => {
     const user = await prisma.users.findUnique({ where: { [usernameType]: username } });
 
     if (!user) {
-      return error(res, "Invalid email or mobile number", RESPONSE_CODES.FAILED, 401);
+      return error(res, "Invalid email or mobile number", RESPONSE_CODES.FAILED, 400);
     }
 
     //  Handle soft delete check
@@ -239,7 +239,7 @@ exports.loginUser = async (req, res) => {
       const responseMsg = await sendDynamicMessageQ(msg_data)
 
       if (!responseMsg.success) {
-        return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 401);
+        return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 400);
       }
 
       return success(res, `OTP sent successfully ${otp}`, {
@@ -272,7 +272,7 @@ exports.verifyLoginOtp = async (req, res) => {
 
     // 2️⃣ User existence check
     if (!user) {
-      return error(res, "Username must be email or mobile number", RESPONSE_CODES.FAILED, 401);
+      return error(res, "Username must be email or mobile number", RESPONSE_CODES.FAILED, 400);
     }
 
     // 3️⃣ Verify OTP
@@ -302,7 +302,7 @@ exports.logoutUser = async (req, res) => {
     const { all_device = false } = req.body || {};
     const token = req.headers["authorization"]?.replace("Bearer ", "");
     if (!token) {
-      return error(res, "Token required", RESPONSE_CODES.FAILED, 401);
+      return error(res, "Token required", RESPONSE_CODES.FAILED, 400);
     }
 
     if (all_device) {
@@ -489,7 +489,7 @@ exports.loginCustomer = async (req, res) => {
     const customer = await prisma.customers.findUnique({ where: { [usernameType]: username } });
 
     if (!customer) {
-      return error(res, "Invalid email or mobile number", RESPONSE_CODES.FAILED, 401);
+      return error(res, "Invalid email or mobile number", RESPONSE_CODES.FAILED, 400);
     }
 
     //  Handle soft delete check
@@ -500,7 +500,7 @@ exports.loginCustomer = async (req, res) => {
     // 3️⃣ Password validation
     const valid = await bcrypt.compare(password, customer.password);
     if (!valid) {
-      return error(res, "Incorrect password", RESPONSE_CODES.FAILED, 401);
+      return error(res, "Incorrect password", RESPONSE_CODES.FAILED, 400);
     }
 
     // 4️⃣ OTP ENABLED LOGIN FLOW
@@ -525,7 +525,7 @@ exports.loginCustomer = async (req, res) => {
       const responseMsg = await sendDynamicMessageQ(msg_data)
 
       if (!responseMsg.success) {
-        return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 401);
+        return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 400);
       }
 
       return success(res, `OTP sent successfully ${otp}`, {
@@ -625,7 +625,7 @@ exports.sendRegisterCustomerOtp = async (req, res) => {
 
     // const responseMsg = await sendDynamicMessageQ(msg_data_mobile)
     // if (!responseMsg.success) {
-    //   return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 401);
+    //   return error(res, `Failed to send OTP to your registered mobile no.`, RESPONSE_CODES.FAILED, 400);
     // }
     return success(res, `OTP sent for  mobile verification ${mobile_Otp}`, {
       Mobile: maskMobile(mobile_no),

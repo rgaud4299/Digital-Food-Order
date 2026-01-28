@@ -13,13 +13,13 @@ const authMiddleware = async (req, res, next) => {
     : null;
 
   if (!token) {
-    return error(res, "Authorization token missing", RESPONSE_CODES.FAILED, 401);
+    return error(res, "Authorization token missing", RESPONSE_CODES.FAILED, 400);
   }
 
   const result = await verifyTokenUtil(token);
 
   if (!result?.success) {
-    return error(res, result.message || "Unauthorized", RESPONSE_CODES.FAILED, 401);
+    return error(res, result.message || "Unauthorized", RESPONSE_CODES.FAILED, 400);
   }
 
   // 👇 dono cases handle
